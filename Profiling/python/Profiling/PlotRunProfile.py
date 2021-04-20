@@ -43,9 +43,9 @@ def _parse_sourcex_logs(path):
     with open(path) as fd:
         for line in fd:
             try:
-                timestamp, logger, level, _, message = line.split(maxsplit=4)
+                timestamp, who, level, _, message = line.split(maxsplit=4)
                 log['timestamp'].append(timestamp_parser.parse(timestamp))
-                log['logger'].append(logger)
+                log['logger'].append(who)
                 log['level'].append(level)
                 log['message'].append(message.strip())
             except ValueError as e:
