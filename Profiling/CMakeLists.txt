@@ -62,6 +62,7 @@ elements_install_python_modules()
 #                             ElementsExamples.PythonProgramExample)
 #===============================================================================
 elements_add_python_program(PlotRunProfile Profiling.PlotRunProfile)
+elements_add_python_program(RunProfiled Profiling.RunProfiled)
 
 #===============================================================================
 # Add the elements_install_conf_files macro
