@@ -23,8 +23,9 @@ from datetime import timedelta
 import ElementsKernel.Logging as logging
 import matplotlib.pyplot as plt
 import numpy as np
-from dateutil.parser import parser as dateutil_parser
+from dateutil.parser import parse, parser as dateutil_parser
 from matplotlib.ticker import FuncFormatter
+from time import mktime
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,9 @@ def read_sourcex_logs(path):
         # Thread count
         if m.startswith('thread-count ='):
             data['thread-count'] = int(m.split('=')[1].strip())
+        # Tile memory limit
+        elif m.startswith('tile-memory-limit ='):
+            data['tile-memory-limit'] = int(m.split('=')[1].strip())
         # Background modelling
         elif m.startswith('Background for image'):
             data['background'].append(t)
@@ -111,6 +115,17 @@ def read_sourcex_logs(path):
     return data
 
 
+def parse_time(v: str) -> float:
+    """
+    Time to a posix timestamp
+    Depending on the pidstat version, must use a different method
+    """
+    try:
+        return float(v)
+    except ValueError:
+        return mktime(parse(v).timetuple())
+
+
 def read_pidstat(path, ncores=32):
     """
     Parse
@@ -130,8 +145,11 @@ def read_pidstat(path, ncores=32):
                 values = line.split()
                 for k, v in zip(keys, values):
                     try:
-                        data[k].append(float(v))
-                    except:
+                        if k == 'Time':
+                            data[k].append(parse_time(v))
+                        else:
+                            data[k].append(float(v))
+                    except ValueError:
                         data[k].append(v)
     for k, v in data.items():
         data[k] = np.array(v)
@@ -180,7 +198,16 @@ def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None):
     lns = lcpu + [lconfig, lbg, ls, ld, lm]
 
     legend_ax = ax
-    if 'kB_rd/s' in pidstat:
+    if 'RSS' in pidstat:
+        ax2 = ax.twinx()
+        legend_ax = ax2
+        lio = ax2.plot(pidstat['Time'], pidstat['RSS'] / 1024, linestyle='-.', color='deeppink',
+                       label='RSS')
+        ax2.set_ylabel('MiB')
+        tml = ax2.axhline(log['tile-memory-limit'], linestyle='--', color='gray', label='tile-memory-limit')
+        lns.extend(lio)
+        lns.append(tml)
+    elif 'kB_rd/s' in pidstat:
         ax2 = ax.twinx()
         legend_ax = ax2
         lio = ax2.plot(pidstat['Time'], pidstat['kB_rd/s'] / 1024, linestyle=':', color='gray',

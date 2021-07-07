@@ -108,7 +108,7 @@ def defineSpecificProgramOptions():
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-v', '--use-version', type=str, default=None,
+    parser.add_argument('-u', '--use-version', type=str, default=None,
                         help='SourceXtractor++ version. '
                              'The script will try to figure it out if not specified')
     parser.add_argument('-p', '--project-area', type=str,
