@@ -155,6 +155,14 @@ def read_pidstat(path, ncores=32):
         data[k] = np.array(v)
     data['Time'] = data['Time'] - data['Time'][0]
     data['CPU'] = (data['%CPU'] / 100) * ncores
+    # pidstat only log time, but it may wrap around if the process runs for more than 24 hours
+    wrapped = data['Time'][1:] <= 0
+    while np.any(wrapped):
+        first = np.argmax(wrapped)
+        data['Time'][1 + first:] += 24 * 60 * 60
+        wrapped = data['Time'][1:] <= 0
+    d = np.diff(data['Time'])
+    print(d.argmin(), d.argmax())
     return data
 
 
@@ -204,7 +212,8 @@ def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None):
         lio = ax2.plot(pidstat['Time'], pidstat['RSS'] / 1024, linestyle='-.', color='deeppink',
                        label='RSS')
         ax2.set_ylabel('MiB')
-        tml = ax2.axhline(log['tile-memory-limit'], linestyle='--', color='gray', label='tile-memory-limit')
+        tml = ax2.axhline(log['tile-memory-limit'], linestyle='--', color='gray',
+                          label='tile-memory-limit')
         lns.extend(lio)
         lns.append(tml)
     elif 'kB_rd/s' in pidstat:
