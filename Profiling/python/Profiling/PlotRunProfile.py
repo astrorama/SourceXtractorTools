@@ -52,7 +52,7 @@ def _parse_sourcex_logs(path):
             except ValueError as e:
                 logger.warning(e)
     start = log['timestamp'][0]
-    log['Time'] = np.array([(t - start).seconds for t in log['timestamp']])
+    log['Time'] = np.array([(t - start).total_seconds() for t in log['timestamp']])
     return log
 
 
