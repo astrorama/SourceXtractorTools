@@ -153,16 +153,11 @@ def read_pidstat(path, ncores=32):
                         data[k].append(v)
     for k, v in data.items():
         data[k] = np.array(v)
-    data['Time'] = data['Time'] - data['Time'][0]
-    data['CPU'] = (data['%CPU'] / 100) * ncores
     # pidstat only log time, but it may wrap around if the process runs for more than 24 hours
-    wrapped = data['Time'][1:] <= 0
-    while np.any(wrapped):
-        first = np.argmax(wrapped)
-        data['Time'][1 + first:] += 24 * 60 * 60
-        wrapped = data['Time'][1:] <= 0
-    d = np.diff(data['Time'])
-    print(d.argmin(), d.argmax())
+    dtime = np.diff(data['Time'], prepend=data['Time'][0])
+    dtime[dtime < 0] = 24 * 60 * 60 + dtime[dtime < 0]
+    data['Time'] = np.cumsum(dtime)
+    data['CPU'] = (data['%CPU'] / 100) * ncores
     return data
 
 
