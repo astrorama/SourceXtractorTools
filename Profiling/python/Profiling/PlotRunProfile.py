@@ -172,12 +172,51 @@ def _pretty_duration(timestamps):
     return str(d)
 
 
-def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None):
+def plot_cpu(ax, pidstat, _, cpu_config):
+    lconfig = ax.axhline(cpu_config, color='red', linestyle='--', label='thread-number')
+    lcpu = ax.plot(pidstat['Time'], pidstat['CPU'], label='CPU')
+    ax.set_ylabel('Number of CPU')
+
+    # Moving average
+    ma = np.convolve(pidstat['CPU'], np.ones(60), 'same') / 60
+    ax.plot(pidstat['Time'], ma, linestyle='-', color='cyan', alpha=0.5)
+
+    return [lconfig] + lcpu
+
+
+def plot_memory(ax, pidstat, log, cpu_config):
+    lio = ax.plot(pidstat['Time'], pidstat['RSS'] / 1024, linestyle='-.', color='deeppink',
+                  label='RSS')
+    ax.set_ylabel('MiB')
+    tml = ax.axhline(log['tile-memory-limit'], linestyle='--', color='gray',
+                     label='tile-memory-limit')
+    return lio + [tml]
+
+
+def plot_io(ax, pidstat, log, cpu_config):
+    lio = ax.plot(pidstat['Time'], pidstat['kB_rd/s'] / 1024, linestyle=':', color='gray',
+                  label='Read activity')
+    ax.set_ylabel('MB/s')
+    return lio
+
+
+__plots = {
+    'cpu': plot_cpu,
+    'memory': plot_memory,
+    'io': plot_io
+}
+
+
+def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None, y_left='cpu', y_right='memory'):
     if ax is None:
         ax = plt.gca()
 
-    lcpu = ax.plot(pidstat['Time'], pidstat['CPU'], label='CPU')
-    lconfig = ax.axhline(cpu_config, color='red', linestyle='--', label='thread-number')
+    # X ticks format
+    formatter = FuncFormatter(lambda s, x: str(timedelta(seconds=s)))
+    ax.xaxis.set_major_formatter(formatter)
+    ax.set_xlabel('Time')
+
+    # Milestones
     lbg = ax.vlines(
         log['background'], 0, cpu_config, color='black', linestyle='--',
         label='Background done'
@@ -194,37 +233,18 @@ def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None):
         *log['measurement'], ymin=0.66, ymax=1., color='lightgreen',
         label='Measurement ({})'.format(_pretty_duration(log['measurement']))
     )
-    ax.set_ylabel('Number of CPU')
 
-    # Moving average
-    ma = np.convolve(pidstat['CPU'], np.ones(60), 'same') / 60
-    ax.plot(pidstat['Time'], ma, linestyle='-', color='cyan', alpha=0.5)
+    # Left Y
+    artists_lefts = __plots[y_left](ax, pidstat, log, cpu_config)
 
-    formatter = FuncFormatter(lambda s, x: str(timedelta(seconds=s)))
-    ax.xaxis.set_major_formatter(formatter)
-    ax.set_xlabel('Time')
-
-    lns = lcpu + [lconfig, lbg, ls, ld, lm]
-
+    # Right Y
     legend_ax = ax
-    if 'RSS' in pidstat:
+    if y_right:
         ax2 = ax.twinx()
         legend_ax = ax2
-        lio = ax2.plot(pidstat['Time'], pidstat['RSS'] / 1024, linestyle='-.', color='deeppink',
-                       label='RSS')
-        ax2.set_ylabel('MiB')
-        tml = ax2.axhline(log['tile-memory-limit'], linestyle='--', color='gray',
-                          label='tile-memory-limit')
-        lns.extend(lio)
-        lns.append(tml)
-    elif 'kB_rd/s' in pidstat:
-        ax2 = ax.twinx()
-        legend_ax = ax2
-        lio = ax2.plot(pidstat['Time'], pidstat['kB_rd/s'] / 1024, linestyle=':', color='gray',
-                       label='Read activity')
-        ax2.set_ylabel('MB/s')
-        lns.extend(lio)
+        artists_right = __plots[y_right](ax2, pidstat, log, cpu_config)
 
+    lns = artists_lefts + artists_right + [lbg, ls, ld, lm]
     labels = [l.get_label() for l in lns]
     legend_ax.legend(lns, labels)
     ax.grid()
@@ -253,6 +273,10 @@ def defineSpecificProgramOptions():
                              'accordingly the %CPU from pidstat')
     parser.add_argument('-t', '--title', type=str, default=None,
                         help='Plot title')
+    parser.add_argument('--y-left', type=str, default='cpu',
+                        help='Value for the left Y axis')
+    parser.add_argument('--y-right', type=str, default='memory',
+                        help='Value for the right Y axis')
     return parser
 
 
@@ -273,5 +297,6 @@ def mainMethod(args):
         args.title = os.path.basename(args.log)
 
     pidstat = read_pidstat(args.pidstat, ncores=args.n_cores)
-    plot_perf(pidstat, sourcex_log, cpu_config=sourcex_log['thread-count'], title=args.title)
+    plot_perf(pidstat, sourcex_log, cpu_config=sourcex_log['thread-count'], title=args.title,
+              y_left=args.y_left, y_right=args.y_right)
     plt.show()
