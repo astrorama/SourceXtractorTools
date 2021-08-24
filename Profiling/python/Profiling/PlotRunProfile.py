@@ -70,6 +70,7 @@ def read_sourcex_logs(path):
     )
     deblending_max = 0
     measured_max = 0
+    segmented_max = 0
     for m, t in zip(parsed['message'], parsed['Time']):
         # Thread count
         if m.startswith('thread-count ='):
@@ -83,12 +84,14 @@ def read_sourcex_logs(path):
         # Segmentation
         elif m.startswith('Segmentation'):
             _, line, _, total, _ = m.split()
+            line = int(line)
             # First line done, ~approximation for start
-            if int(line) > 0 and data['segmentation'][0] is None:
+            if line > 0 and data['segmentation'][0] is None:
                 data['segmentation'][0] = t
             # Last line done, end
-            if int(line) == int(total) and data['segmentation'][1] is None:
+            elif line > segmented_max:
                 data['segmentation'][1] = t
+                segmented_max = line
         # Measurement
         elif m.startswith('Measured'):
             # First done, ~approximation for start
@@ -112,6 +115,9 @@ def read_sourcex_logs(path):
                     data['deblending'][0] = t
                 data['deblending'][1] = t
                 deblending_max = count
+    # When the process has not been finished
+    if not data['segmentation'][1]:
+        data['segmentation'][1] = data['deblending'][1]
     return data
 
 
