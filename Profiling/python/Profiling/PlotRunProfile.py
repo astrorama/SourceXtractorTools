@@ -67,6 +67,7 @@ def read_sourcex_logs(path):
         segmentation=[None, None],
         deblending=[None, None],
         measurement=[None, None],
+        segmented={'time': [], 'lines': []},
         detected={'time': [], 'count': []},
         deblended={'time': [], 'count': []},
         measured={'time': [], 'count': []},
@@ -95,6 +96,8 @@ def read_sourcex_logs(path):
             elif line > segmented_max:
                 data['segmentation'][1] = t
                 segmented_max = line
+            data['segmented']['lines'].append(line)
+            data['segmented']['time'].append(t)
         # Detected
         elif m.startswith('Detected'):
             count = int(m.split()[1])
@@ -223,11 +226,18 @@ def plot_sources(ax, pidstat, log, cpu_config):
     return lde + ldb + lme
 
 
+def plot_segmented(ax, pidstat, log, cpu_config):
+    ax.set_ylabel('Lines')
+    return ax.plot(log['segmented']['time'], log['segmented']['lines'], linestyle='--',
+                   color='purple', label='Segmented')
+
+
 __plots = {
     'cpu': plot_cpu,
     'memory': plot_memory,
     'io': plot_io,
     'sources': plot_sources,
+    'segmented': plot_segmented
 }
 
 
