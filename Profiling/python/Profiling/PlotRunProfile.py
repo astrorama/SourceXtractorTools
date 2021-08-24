@@ -67,6 +67,9 @@ def read_sourcex_logs(path):
         segmentation=[None, None],
         deblending=[None, None],
         measurement=[None, None],
+        detected={'time': [], 'count': []},
+        deblended={'time': [], 'count': []},
+        measured={'time': [], 'count': []},
     )
     deblending_max = 0
     measured_max = 0
@@ -92,6 +95,11 @@ def read_sourcex_logs(path):
             elif line > segmented_max:
                 data['segmentation'][1] = t
                 segmented_max = line
+        # Detected
+        elif m.startswith('Detected'):
+            count = int(m.split()[1])
+            data['detected']['count'].append(count)
+            data['detected']['time'].append(t)
         # Measurement
         elif m.startswith('Measured'):
             # First done, ~approximation for start
@@ -104,6 +112,8 @@ def read_sourcex_logs(path):
                 if count > measured_max:
                     data['measurement'][1] = t
                     measured_max = count
+            data['measured']['count'].append(count)
+            data['measured']['time'].append(t)
         # Deblending
         elif m.startswith('Deblended'):
             _, count = m.split()
@@ -115,6 +125,8 @@ def read_sourcex_logs(path):
                     data['deblending'][0] = t
                 data['deblending'][1] = t
                 deblending_max = count
+            data['deblended']['count'].append(count)
+            data['deblended']['time'].append(t)
     # When the process has not been finished
     if not data['segmentation'][1]:
         data['segmentation'][1] = data['deblending'][1]
@@ -200,10 +212,22 @@ def plot_io(ax, pidstat, log, cpu_config):
     return lio
 
 
+def plot_sources(ax, pidstat, log, cpu_config):
+    ax.set_ylabel('N.Sources')
+    lde = ax.plot(log['detected']['time'], log['detected']['count'], linestyle='-',
+                  color='crimson', label='Detected')
+    ldb = ax.plot(log['deblended']['time'], log['deblended']['count'], linestyle='-',
+                  color='deepskyblue', label='Deblended')
+    lme = ax.plot(log['measured']['time'], log['measured']['count'], linestyle='-',
+                  color='green', label='Measured')
+    return lde + ldb + lme
+
+
 __plots = {
     'cpu': plot_cpu,
     'memory': plot_memory,
-    'io': plot_io
+    'io': plot_io,
+    'sources': plot_sources,
 }
 
 
