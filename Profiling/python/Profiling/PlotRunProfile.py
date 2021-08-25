@@ -163,11 +163,12 @@ def read_pidstat(path, ncores=32):
                         data[k] = []
                 reading_values = True
             elif reading_values:
+                line = line.replace(' AM', '_AM').replace(' PM', '_PM')
                 values = line.split()
                 for k, v in zip(keys, values):
                     try:
                         if k == 'Time':
-                            data[k].append(parse_time(v))
+                            data[k].append(parse_time(v.replace('_', ' ')))
                         else:
                             data[k].append(float(v))
                     except ValueError:
