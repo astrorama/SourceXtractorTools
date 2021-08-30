@@ -67,11 +67,13 @@ def read_sourcex_logs(path):
         segmentation=[None, None],
         deblending=[None, None],
         measurement=[None, None],
+        duration=None,
         segmented={'time': [], 'lines': []},
         detected={'time': [], 'count': []},
         deblended={'time': [], 'count': []},
         measured={'time': [], 'count': []},
     )
+    first = None
     deblending_max = 0
     measured_max = 0
     segmented_max = 0
@@ -130,6 +132,10 @@ def read_sourcex_logs(path):
                 deblending_max = count
             data['deblended']['count'].append(count)
             data['deblended']['time'].append(t)
+        elif first is None:
+            first = t
+        else:
+            data['duration'] = t - first
     # When the process has not been finished
     if not data['segmentation'][1]:
         data['segmentation'][1] = data['deblending'][1]
@@ -269,6 +275,11 @@ def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None, y_left='cpu', y_
         label='Measurement ({})'.format(_pretty_duration(log['measurement']))
     )
 
+    le = ax.axvline(
+        log['duration'], linestyle='--', color='crimson',
+        label='Finished ({})'.format(timedelta(seconds=log['duration']))
+    )
+
     # Left Y
     artists_lefts = __plots[y_left](ax, pidstat, log, cpu_config)
 
@@ -279,7 +290,7 @@ def plot_perf(pidstat, log, cpu_config=32, ax=None, title=None, y_left='cpu', y_
         legend_ax = ax2
         artists_right = __plots[y_right](ax2, pidstat, log, cpu_config)
 
-    lns = artists_lefts + artists_right + [lbg, ls, ld, lm]
+    lns = artists_lefts + artists_right + [lbg, ls, ld, lm, le]
     labels = [l.get_label() for l in lns]
     legend_ax.legend(lns, labels)
     ax.grid()
