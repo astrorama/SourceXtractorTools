@@ -80,6 +80,11 @@ def runProfiled(sourcextractor: Tuple[str, dict], pidstat: str, log: str, interv
     """
     Run sourcextractor, and attach pidstat to it
     """
+    if os.path.exists(log):
+        os.unlink(log)
+    if os.path.exists(pidstat):
+        os.unlink(pidstat)
+
     sourcex_bin, sourcex_env = sourcextractor
     sourcex_proc = Popen([sourcex_bin] + extra_args + ['--log-file', log], shell=False,
                          env=sourcex_env)
